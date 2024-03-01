@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:para_po/screens/map/map.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -79,7 +80,7 @@ class _HomePageState extends State<HomePage> {
                               borderRadius: BorderRadius.circular(30.0),
                             ),
                           ),
-                          onPressed: () {},
+                          onPressed: () {Navigator.push(context, MaterialPageRoute(builder: (context) => Map()));},
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
