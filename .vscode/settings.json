@@ -1,3 +1,4 @@
 {
-    "cmake.sourceDirectory": "F:/Freelance/para-po-app/para_po/linux"
+    "cmake.sourceDirectory": "F:/Freelance/para-po-app/para_po/linux",
+    "cmake.configureOnOpen": false
 }
