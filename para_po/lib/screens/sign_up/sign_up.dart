@@ -105,9 +105,6 @@ class _SignupState extends State<SignUp> {
                             if (_formKey.currentState!.validate()) {
                                 _formKey.currentState?.save();
                                 setDriverDetails();
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Processing Data')),
-                                );
                               }
                           },
                           child: const Row(
