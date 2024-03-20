@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:para_po/screens/sign_up/sign_up.dart';
 import 'package:para_po/screens/map/map.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../constants/constants.dart' as constants;
+import '../../utilities/constants/constants.dart' as constants;
 
 //This file redirect the user on Map component if the driver information is existing,
 //else it will redirect the user to driver form

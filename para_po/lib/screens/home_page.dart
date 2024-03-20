@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:para_po/screens/map/map.dart';
 import 'package:para_po/screens/route_gate/route_gate.dart';
 
 class HomePage extends StatefulWidget {

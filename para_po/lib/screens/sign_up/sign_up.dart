@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
 import 'package:para_po/screens/route_gate/route_gate.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../constants/constants.dart' as constants;
+import '../../utilities/constants/constants.dart' as constants;
 
 class SignUp extends StatefulWidget {
   const SignUp({super.key});
@@ -20,8 +20,8 @@ class _SignupState extends State<SignUp> {
     final formData = _formKey.currentState?.value;
 
     await prefs.setString(constants.DRIVER_NAME, formData?[constants.DRIVER_NAME]);
-    await prefs.setString(constants.BUS_NUMBER, formData?[constants.DRIVER_NAME]);
-    await prefs.setString(constants.BUS_PLATE_NUMBER, formData?[constants.DRIVER_NAME]);
+    await prefs.setString(constants.BUS_NUMBER, formData?[constants.BUS_NUMBER]);
+    await prefs.setString(constants.BUS_PLATE_NUMBER, formData?[constants.BUS_PLATE_NUMBER]);
 
     Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const RouteGate()));
   }
