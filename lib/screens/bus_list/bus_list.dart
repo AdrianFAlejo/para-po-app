@@ -12,8 +12,9 @@ class _BusListState extends State<BusList> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Center(child:  Text('Available Busses')),
+        title: Text('Available Busses'),
         backgroundColor:Colors.lightGreen,
+        centerTitle: true,
       ),
       backgroundColor: Colors.white,
             body: ListView.builder(
