@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:para_po/screens/map/map.dart';
+import 'package:para_po/screens/map/directions_service.dart';
+// import 'package:para_po/screens/bus_list/bus_list.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -71,26 +73,27 @@ class _HomePageState extends State<HomePage> {
                       crossAxisAlignment: CrossAxisAlignment.center,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                SizedBox(
-                      height: MediaQuery.of(context).size.height * 0.08,
-                      width: MediaQuery.of(context).size.width * 0.8,
-                      child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30.0),
+                        SizedBox(
+                          height: MediaQuery.of(context).size.height * 0.08,
+                          width: MediaQuery.of(context).size.width * 0.8,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30.0),
+                              ),
                             ),
+                            onPressed: () { Navigator.push(context, MaterialPageRoute(builder: (context) => const MapPage())); },
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text("Start"),
+                                // SizedBox(
+                                //   width: 15,
+                                // ),
+                              ],
+                            )
                           ),
-                          onPressed: () {Navigator.push(context, MaterialPageRoute(builder: (context) => Map()));},
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text("Start"),
-                              // SizedBox(
-                              //   width: 15,
-                              // ),
-                            ],
-                          )),
-                    )
+                        )
                       ],
                     ),
                   ),
