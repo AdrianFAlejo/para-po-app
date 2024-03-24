@@ -1,19 +1,12 @@
-// ignore_for_file: unused_import
-
 import 'dart:math';
-import 'dart:typed_data';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'dart:async';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
-import 'package:http/http.dart';
-import 'package:geocoding/geocoding.dart';
-import 'package:maps_toolkit/maps_toolkit.dart' as mp;
 import 'package:flutter/services.dart';
-// import 'package:para_po/screens/map/widet_to_map_icon.dart'; // Import flutter/services.dart
+import 'package:para_po/screens/bus_list/bus_list.dart';
+import 'package:image/image.dart' as img; // Import image package for resizing
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -21,9 +14,6 @@ class MapPage extends StatefulWidget {
   @override
   _MapPageState createState() => _MapPageState();
 } 
-
-
-
 class _MapPageState extends State<MapPage> {
 
      @override
@@ -32,11 +22,6 @@ class _MapPageState extends State<MapPage> {
       // setCustomMapPin();
    }
   BitmapDescriptor pinLocationIcon = BitmapDescriptor.defaultMarker;
-  //  void setCustomMapPin() async {
-  //     pinLocationIcon = await BitmapDescriptor.fromAssetImage(
-  //     ImageConfiguration(devicePixelRatio: 2.5),
-  //     'assets/bus-icon.png');
-  //  }
   late GoogleMapController _controller;
   Set<Marker> _markers = {};
   Set<Polyline> _polylines = {};
@@ -49,49 +34,19 @@ class _MapPageState extends State<MapPage> {
   int minutesAway = 10;
   double kmAway = 20.0;
 
-  //   Future<BitmapDescriptor> createCustomMarkerBitmap() async {
-  //   // Load bus icon image asset
-  //   ByteData imageData = await rootBundle.load('assets/images/bus-con.png');
-  //   List<int> byteData = imageData.buffer.asUint8List();  // Convert ByteData to List<int>
-
-  //   // Resize image
-  //   // Resize image
-  //   List<int> resizedImageData = await FlutterImageCompress.compressWithList(
-  //     byteData,
-  //     minHeight: height,
-  //     minWidth: width,
-  //     quality: 100, // You can adjust the quality if needed
-  //   );
-
-  //   // Convert resized image data to Uint8List
-  //   Uint8List resizedImageDataUint8 = Uint8List.fromList(resizedImageData);
-
-  //   return BitmapDescriptor.fromBytes(resizedImageDataUint8);
-  // } 
-
-  //   Future<BitmapDescriptor> createCustomMarkerBitmap(String imagePath, int width, int height) async {
-  //   ByteData imageData = await rootBundle.load(imagePath);
-  //   List<int> byteData = imageData.buffer.asUint8List(); // Convert ByteData to List<int>
-
-  //   // Resize image
-  //   List<int> resizedImageData = await FlutterImageCompress.compressWithList(
-  //     byteData,
-  //     minHeight: height,
-  //     minWidth: width,
-  //     quality: 100, // You can adjust the quality if needed
-  //   );
-
-  //   // Convert resized image data to Uint8List
-  //   Uint8List resizedImageDataUint8 = Uint8List.fromList(resizedImageData);
-
-  //   return BitmapDescriptor.fromBytes(resizedImageDataUint8);
-  // }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('PARA PO'),
+        title: const Text('PARA PO'),
+                actions: <Widget>[
+          IconButton(
+            icon: const Icon(Icons.directions_bus),
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const BusList()));
+            },
+          ),
+        ],
         centerTitle: true,
         automaticallyImplyLeading: false,
         backgroundColor:Colors.lightGreen,
@@ -114,7 +69,8 @@ class _MapPageState extends State<MapPage> {
             left: 16,
             right: 16,
             bottom: 16,
-            child: Container(
+            child: isMarkerOnMap(const MarkerId("PickUpPoint")) ?
+            Container(
               padding: EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -124,7 +80,7 @@ class _MapPageState extends State<MapPage> {
                     color: Colors.grey.withOpacity(0.5),
                     spreadRadius: 2,
                     blurRadius: 7,
-                    offset: Offset(0, 3), // changes position of shadow
+                    offset: const Offset(0, 3),
                   ),
                 ],
               ),
@@ -171,7 +127,8 @@ class _MapPageState extends State<MapPage> {
                   ),
                 ],
               ),
-            ),
+            )
+            : Container()
           ),
         ],
       ),
@@ -183,8 +140,8 @@ class _MapPageState extends State<MapPage> {
       _controller = controller;
     });
     // Add markers
-    _addMarker(LatLng(14.8361, 120.2827)); // Point A
-    _addMarker(LatLng(15.0521, 120.6989)); // Po  int B
+    _addMarker( const LatLng(14.8361, 120.2827)); // Point A
+    _addMarker( const LatLng(15.0521, 120.6989)); // Po  int B
     // Fetch and draw polyline
     _getPolyline();
   }
@@ -199,19 +156,25 @@ class _MapPageState extends State<MapPage> {
     });
   }
 
-  // Future<BitmapDescriptor> getCustomIcon() async {
-  //   return SizedBox(
-  //     height: 200,
-  //     width: 200,
-  //     child: Image.asset("temp image"),
-  //   ).toBitmapDescriptor();
-  // }
+  Future<BitmapDescriptor> getCustomBusIcon() async {
+    // Read the bytes of the image asset
+    ByteData byteData = await rootBundle.load('assets/images/pinned-loc.png');
+    Uint8List imageData = byteData.buffer.asUint8List();
 
-    void _addPickUpPoint(LatLng position) async {
+    // Resize the image to the desired dimensions
+    img.Image? image = img.decodeImage(imageData);
+    img.Image resizedImage = img.copyResize(image!, width: 150, height: 150); // Adjust dimensions as needed
+    Uint8List resizedImageData = Uint8List.fromList(img.encodePng(resizedImage));
+
+    // Create BitmapDescriptor from the resized image bytes
+    return BitmapDescriptor.fromBytes(resizedImageData);
+  }
+
+  void _addPickUpPoint(LatLng position) async {
     Marker marker = Marker(
       markerId: const MarkerId("PickUpPoint"),
       position: position,
-      // icon: await getCustomIcon(),
+      icon : await getCustomBusIcon()
     );
     setState(() {
       _markers.add(marker);
