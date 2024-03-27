@@ -12,9 +12,9 @@ class MapPage extends StatefulWidget {
   const MapPage({super.key});
 
   @override
-  _MapPageState createState() => _MapPageState();
+  MapPageState createState() => MapPageState();
 } 
-class _MapPageState extends State<MapPage> {
+class MapPageState extends State<MapPage> {
 
      @override
    void initState() {
@@ -38,10 +38,10 @@ class _MapPageState extends State<MapPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('PARA PO'),
+        title: const Text('PARA PO', style: TextStyle(color: Colors.white),),
                 actions: <Widget>[
           IconButton(
-            icon: const Icon(Icons.directions_bus),
+            icon: const Icon(Icons.directions_bus, color: Colors.white,),
             onPressed: () {
               Navigator.push(context, MaterialPageRoute(builder: (context) => const BusList()));
             },
@@ -49,7 +49,7 @@ class _MapPageState extends State<MapPage> {
         ],
         centerTitle: true,
         automaticallyImplyLeading: false,
-        backgroundColor:Colors.lightGreen,
+        backgroundColor:Colors.blueGrey,
       ),
       body: Stack(
         children: [
@@ -71,7 +71,7 @@ class _MapPageState extends State<MapPage> {
             bottom: 16,
             child: isMarkerOnMap(const MarkerId("PickUpPoint")) ?
             Container(
-              padding: EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(10),
@@ -86,40 +86,40 @@ class _MapPageState extends State<MapPage> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.directions_bus, color: Colors.blue, size: 36),
-                  SizedBox(width: 16),
+                  const Icon(Icons.directions_bus, color: Colors.blue, size: 36),
+                  const SizedBox(width: 16),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '$busName',
-                        style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold),
+                        busName,
+                        style: const TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold),
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Text(
                         'Bus Number: $busNumber',
-                        style: TextStyle(color: Colors.black),
+                        style: const TextStyle(color: Colors.black),
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Text(
                         'Location: $busLocation',
-                        style: TextStyle(color: Colors.black),
+                        style: const TextStyle(color: Colors.black),
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Row(
                         children: [
-                          Icon(Icons.access_time, color: Colors.grey, size: 16),
-                          SizedBox(width: 4),
+                          const Icon(Icons.access_time, color: Colors.grey, size: 16),
+                          const SizedBox(width: 4),
                           Text(
                             '$minutesAway mins away',
-                            style: TextStyle(color: Colors.black),
+                            style: const TextStyle(color: Colors.black),
                           ),
-                          SizedBox(width: 16),
-                          Icon(Icons.location_on, color: Colors.grey, size: 16),
-                          SizedBox(width: 4),
+                          const SizedBox(width: 16),
+                          const Icon(Icons.location_on, color: Colors.grey, size: 16),
+                          const SizedBox(width: 4),
                           Text(
                             '${kmAway.round()} km away',
-                            style: TextStyle(color: Colors.black),
+                            style: const TextStyle(color: Colors.black),
                           ),
                         ],
                       ),
@@ -229,9 +229,9 @@ class _MapPageState extends State<MapPage> {
     
     if (result.points.isNotEmpty) {
       List<LatLng> polylineCoordinates = [];
-      result.points.forEach((PointLatLng point) {
+      for (var point in result.points) {
         polylineCoordinates.add(LatLng(point.latitude, point.longitude));
-      });
+      }
       _addPolyLine(polylineCoordinates);
     } else {
       print(result.errorMessage);

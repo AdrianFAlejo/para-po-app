@@ -12,8 +12,8 @@ class _BusListState extends State<BusList> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Available Busses'),
-        backgroundColor:Colors.lightGreen,
+        title: const Text('Available Busses', style: TextStyle(color: Colors.white),),
+        backgroundColor:Colors.blueGrey,
         centerTitle: true,
       ),
       backgroundColor: Colors.white,
@@ -21,8 +21,8 @@ class _BusListState extends State<BusList> {
         itemCount: 10, // Replace with the actual number of buses
         itemBuilder: (context, index) {
           return Container(
-            margin: EdgeInsets.all(8),
-            padding: EdgeInsets.all(16),
+            margin: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(10),
@@ -31,7 +31,7 @@ class _BusListState extends State<BusList> {
                   color: Colors.grey.withOpacity(0.5),
                   spreadRadius: 2,
                   blurRadius: 5,
-                  offset: Offset(0, 2), // changes position of shadow
+                  offset: const Offset(0, 2), // changes position of shadow
                 ),
               ],
             ),
