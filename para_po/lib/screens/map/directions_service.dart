@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'dart:async';
@@ -7,6 +8,7 @@ import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:flutter/services.dart';
 import 'package:para_po/screens/bus_list/bus_list.dart';
 import 'package:image/image.dart' as img; // Import image package for resizing
+import '../../utilities/constants/constants.dart' as constants;
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -16,7 +18,7 @@ class MapPage extends StatefulWidget {
 } 
 class MapPageState extends State<MapPage> {
 
-     @override
+   @override
    void initState() {
       super.initState();
       // setCustomMapPin();
@@ -27,12 +29,13 @@ class MapPageState extends State<MapPage> {
   Set<Polyline> _polylines = {};
   PolylinePoints polylinePoints = PolylinePoints();
   String googleAPiKey = "AIzaSyBt04ZkRZ8kgz6c0eb3nhUCCCAjbUnqNHQ";
+
   // Sample data for bus information
-  String busName = 'Sample Bus';
-  String busNumber = '123';
-  String busLocation = 'Sample Location';
+  String busNumber = "123-456-78"; //This bus number is an actual bus number from firebase, change it according to selected bus on bus list page.
   int minutesAway = 10;
   double kmAway = 20.0;
+
+  late Object busInfo;
 
   @override
   Widget build(BuildContext context) {
@@ -70,63 +73,71 @@ class MapPageState extends State<MapPage> {
             right: 16,
             bottom: 16,
             child: isMarkerOnMap(const MarkerId("PickUpPoint")) ?
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(10),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.5),
-                    spreadRadius: 2,
-                    blurRadius: 7,
-                    offset: const Offset(0, 3),
+            StreamBuilder(
+              stream: FirebaseFirestore.instance.collection('location').snapshots(),
+              builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
+                if(!snapshot.hasData){
+                  return const Center(child: CircularProgressIndicator());
+                }
+                return Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.5),
+                        spreadRadius: 2,
+                        blurRadius: 7,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.directions_bus, color: Colors.blue, size: 36),
-                  const SizedBox(width: 16),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
                     children: [
-                      Text(
-                        busName,
-                        style: const TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Bus Number: $busNumber',
-                        style: const TextStyle(color: Colors.black),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Location: $busLocation',
-                        style: const TextStyle(color: Colors.black),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
+                      const Icon(Icons.directions_bus, color: Colors.blue, size: 36),
+                      const SizedBox(width: 16),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.access_time, color: Colors.grey, size: 16),
-                          const SizedBox(width: 4),
                           Text(
-                            '$minutesAway mins away',
+                            '${snapshot.data!.docs.singleWhere((element) => element.get(constants.BUS_NUMBER) == busNumber)[constants.BUS_NUMBER]}',
+                            style: const TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Plate Number: ${snapshot.data!.docs.singleWhere((element) => element.get(constants.BUS_NUMBER) == busNumber)[constants.BUS_PLATE_NUMBER]}',
                             style: const TextStyle(color: Colors.black),
                           ),
-                          const SizedBox(width: 16),
-                          const Icon(Icons.location_on, color: Colors.grey, size: 16),
-                          const SizedBox(width: 4),
+                          const SizedBox(height: 4),
                           Text(
-                            '${kmAway.round()} km away',
+                            'Location: ${snapshot.data!.docs.singleWhere((element) => element.get(constants.BUS_NUMBER) == busNumber)["lat"]} , ${snapshot.data!.docs.singleWhere((element) => element.get(constants.BUS_NUMBER) == busNumber)["long"]}',
                             style: const TextStyle(color: Colors.black),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const Icon(Icons.access_time, color: Colors.grey, size: 16),
+                              const SizedBox(width: 4),
+                              Text(
+                                '$minutesAway mins away',
+                                style: const TextStyle(color: Colors.black),
+                              ),
+                              const SizedBox(width: 16),
+                              const Icon(Icons.location_on, color: Colors.grey, size: 16),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${kmAway.round()} km away',
+                                style: const TextStyle(color: Colors.black),
+                              ),
+                            ],
                           ),
                         ],
                       ),
                     ],
                   ),
-                ],
-              ),
+                );
+              }
             )
             : Container()
           ),

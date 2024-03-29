@@ -30,7 +30,7 @@ class _BusListState extends State<BusList> {
                   return const Center(child: CircularProgressIndicator());
                 }
                 return ListView.builder(
-                        itemCount: snapshot.data?.docs.length, // Replace with the actual number of buses
+                        itemCount: snapshot.data?.docs.length,
                         itemBuilder: (context, index) {
                           return Container(
                 margin: const EdgeInsets.all(8),
