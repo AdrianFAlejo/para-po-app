@@ -82,7 +82,7 @@ class _HomePageState extends State<HomePage> {
                                 borderRadius: BorderRadius.circular(30.0),
                               ),
                             ),
-                            onPressed: () { Navigator.push(context, MaterialPageRoute(builder: (context) => const MapPage())); },
+                            onPressed: () { Navigator.push(context, MaterialPageRoute(builder: (context) => const MapScreen())); },
                             child: const Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [

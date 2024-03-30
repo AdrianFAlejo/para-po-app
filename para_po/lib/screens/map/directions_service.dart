@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -8,10 +9,16 @@ import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:flutter/services.dart';
 import 'package:para_po/screens/bus_list/bus_list.dart';
 import 'package:image/image.dart' as img; // Import image package for resizing
+import 'package:para_po/screens/map/map.dart';
 import '../../utilities/constants/constants.dart' as constants;
+import 'package:http/http.dart' as http;
 
 class MapPage extends StatefulWidget {
-  const MapPage({super.key});
+  final String busNumber;
+  final double busLat;
+  final double busLng;
+
+  const MapPage({super.key, required this.busNumber,  required this.busLat, required this.busLng});
 
   @override
   MapPageState createState() => MapPageState();
@@ -21,19 +28,20 @@ class MapPageState extends State<MapPage> {
    @override
    void initState() {
       super.initState();
-      // setCustomMapPin();
    }
   BitmapDescriptor pinLocationIcon = BitmapDescriptor.defaultMarker;
   late GoogleMapController _controller;
   Set<Marker> _markers = {};
   Set<Polyline> _polylines = {};
   PolylinePoints polylinePoints = PolylinePoints();
-  String googleAPiKey = "AIzaSyBt04ZkRZ8kgz6c0eb3nhUCCCAjbUnqNHQ";
+  PolylinePoints busPolylinePoints = PolylinePoints();
 
-  // Sample data for bus information
-  String busNumber = "123-456-78"; //This bus number is an actual bus number from firebase, change it according to selected bus on bus list page.
-  int minutesAway = 10;
-  double kmAway = 20.0;
+  double tappedLat = 0.0;
+  double tappedLng = 0.0;
+
+  dynamic minutesAway;
+  dynamic kmAway;
+  dynamic busAddress = 'Loading address...';
 
   late Object busInfo;
 
@@ -41,7 +49,7 @@ class MapPageState extends State<MapPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('PARA PO', style: TextStyle(color: Colors.white),),
+        title: const Text('Directions Service', style: TextStyle(color: Colors.white),),
                 actions: <Widget>[
           IconButton(
             icon: const Icon(Icons.directions_bus, color: Colors.white,),
@@ -52,6 +60,14 @@ class MapPageState extends State<MapPage> {
         ],
         centerTitle: true,
         automaticallyImplyLeading: false,
+        leading: IconButton(
+            icon: const Icon(Icons.home, color: Colors.white),
+            onPressed: () {
+              // Your custom function here
+              // For example:
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const MapScreen())); // Navigate to home screen
+            },
+          ),
         backgroundColor:Colors.blueGrey,
       ),
       body: Stack(
@@ -61,100 +77,148 @@ class MapPageState extends State<MapPage> {
             onTap: _onTap,
             mapType: MapType.normal,
             myLocationEnabled: true,
-            initialCameraPosition: const CameraPosition(
-              target: LatLng(14.8361, 120.2827),
+            initialCameraPosition: CameraPosition(
+              target: LatLng(widget.busLat, widget.busLng),
               zoom: 15,
             ),
             markers: _markers,
             polylines: _polylines,
           ),
-          Positioned(
-            left: 16,
-            right: 16,
-            bottom: 16,
-            child: isMarkerOnMap(const MarkerId("PickUpPoint")) ?
-            StreamBuilder(
-              stream: FirebaseFirestore.instance.collection('location').snapshots(),
-              builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
-                if(!snapshot.hasData){
-                  return const Center(child: CircularProgressIndicator());
-                }
-                return Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withOpacity(0.5),
-                        spreadRadius: 2,
-                        blurRadius: 7,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.directions_bus, color: Colors.blue, size: 36),
-                      const SizedBox(width: 16),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${snapshot.data!.docs.singleWhere((element) => element.get(constants.BUS_NUMBER) == busNumber)[constants.BUS_NUMBER]}',
-                            style: const TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Plate Number: ${snapshot.data!.docs.singleWhere((element) => element.get(constants.BUS_NUMBER) == busNumber)[constants.BUS_PLATE_NUMBER]}',
-                            style: const TextStyle(color: Colors.black),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Location: ${snapshot.data!.docs.singleWhere((element) => element.get(constants.BUS_NUMBER) == busNumber)["lat"]} , ${snapshot.data!.docs.singleWhere((element) => element.get(constants.BUS_NUMBER) == busNumber)["long"]}',
-                            style: const TextStyle(color: Colors.black),
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
+          StreamBuilder(
+            stream: FirebaseFirestore.instance.collection('location').where(constants.BUS_NUMBER, isEqualTo: widget.busNumber).snapshots(),
+            builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
+              if(!snapshot.hasData){
+                return const Center(child: CircularProgressIndicator());
+              }
+                snapshot.data!.docChanges.forEach((change) async {
+                  if (change.type == DocumentChangeType.added || change.type == DocumentChangeType.modified) {
+                  Map<String, dynamic> data = change.doc.data() as Map<String, dynamic>;
+                    _addBusMarker(LatLng(widget.busLat, widget.busLng), MarkerId(widget.busNumber));
+                    _updatingPolyline(LatLng(data[constants.LATITUDE], data[constants.LONGITUDE]), data[constants.IS_ON_GOING]);
+                    getAddress(data[constants.LATITUDE], data[constants.LONGITUDE]);
+                    isMarkerOnMap(const MarkerId("PickUpPoint")) ? fetchRouteInfo(PointLatLng(widget.busLat, widget.busLng), PointLatLng(tappedLat, tappedLng)) : null;
+                  }
+                });
+              return Positioned(
+                left: 16,
+                right: 16,
+                bottom: 16,
+                child: isMarkerOnMap(const MarkerId("PickUpPoint")) ?
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.withOpacity(0.5),
+                          spreadRadius: 2,
+                          blurRadius: 7,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.directions_bus, color: Colors.blue, size: 36),
+                        const SizedBox(width: 16),
+                        Flexible(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Icon(Icons.access_time, color: Colors.grey, size: 16),
-                              const SizedBox(width: 4),
                               Text(
-                                '$minutesAway mins away',
+                                '${snapshot.data!.docs.singleWhere((element) => element.get(constants.BUS_NUMBER) == widget.busNumber)[constants.BUS_PLATE_NUMBER]}',
+                                style: const TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Driver name: ${snapshot.data!.docs.singleWhere((element) => element.get(constants.BUS_NUMBER) == widget.busNumber)[constants.DRIVER_NAME]}',
                                 style: const TextStyle(color: Colors.black),
                               ),
-                              const SizedBox(width: 16),
-                              const Icon(Icons.location_on, color: Colors.grey, size: 16),
-                              const SizedBox(width: 4),
+                              const SizedBox(height: 4),
                               Text(
-                                '${kmAway.round()} km away',
+                                'Bus number: ${snapshot.data!.docs.singleWhere((element) => element.get(constants.BUS_NUMBER) == widget.busNumber)[constants.BUS_NUMBER]}',
                                 style: const TextStyle(color: Colors.black),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                busAddress,
+                                style: const TextStyle(color: Colors.black),
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  const Icon(Icons.access_time, color: Colors.grey, size: 16),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '$minutesAway away from your pin',
+                                    style: const TextStyle(color: Colors.black),
+                                  ),
+                                ],
+                              ),
+                              Row(
+                                children: [
+                                  const Icon(Icons.location_on, color: Colors.grey, size: 16),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '$kmAway away from your pin',
+                                    style: const TextStyle(color: Colors.black),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
-                        ],
-                      ),
-                    ],
-                  ),
-                );
-              }
-            )
-            : Container()
-          ),
+                        ),
+                      ],
+                    ),
+                  )
+                  : const SizedBox()
+              );
+            }
+          )
         ],
       ),
     );
   }
 
+  //Implementing markers and polylines in map screen
   void _onMapCreated(GoogleMapController controller) {
     setState(() {
       _controller = controller;
     });
     // Add markers
-    _addMarker( const LatLng(14.8361, 120.2827)); // Point A
-    _addMarker( const LatLng(15.0521, 120.6989)); // Po  int B
-    // Fetch and draw polyline
-    _getPolyline();
+    _addMarker( const LatLng(constants.SM_OLONGAPO_LATITUDE, constants.SM_OLONGAPO_LONGITUDE)); // Point A
+    _addMarker( const LatLng(constants.SM_PAMPANGA_LATITUDE, constants.SM_PAMPANGA_LONGITUDE)); // Po  int B
+  }
+
+  //Adding markers to the map
+  void _addBusMarker(LatLng position, MarkerId id) async {
+    BitmapDescriptor customIcon = await getCustomBusMarkerIcon();
+  print("adding marker ${isMarkerOnMap(id)}");
+    if(isMarkerOnMap(id)){ 
+        setState(() {
+          // Remove the old marker from the set
+          _markers.removeWhere((marker) => marker.markerId == id);
+          Marker marker = Marker(
+            markerId: id,
+            position: position,
+            icon : customIcon
+          );
+          setState(() {
+            _markers.add(marker);
+          });
+        });
+    } 
+    else {
+      Marker marker = Marker(
+        markerId: id,
+        position: position,
+        icon : customIcon
+      );
+      setState(() {
+        _markers.add(marker);
+      });
+    }
   }
 
   void _addMarker(LatLng position) {
@@ -165,6 +229,124 @@ class MapPageState extends State<MapPage> {
     setState(() {
       _markers.add(marker);
     });
+  }
+
+  void _addPickUpPoint(LatLng position) async {
+    Marker marker = Marker(
+      markerId: const MarkerId("PickUpPoint"),
+      position: position,
+      icon : await getCustomBusIcon()
+    );
+    setState(() {
+      _markers.add(marker);
+    });
+  }
+
+  //Putting the polylines of the map to location in screen
+  void _addBusPolyLine(List<LatLng> polylineCoordinates) {
+    PolylineId id = const PolylineId("BusPolyline");
+    Polyline polyline = Polyline(
+      polylineId: id,
+      color: Colors.blue,
+      points: polylineCoordinates,
+      width: 10,
+    );   
+    setState(() {
+      _polylines.add(polyline);
+    });
+  }
+
+  Future<void> _updatingPolyline(LatLng busPosition, bool isOngoing) async {
+    LatLng destination = isOngoing ? const LatLng(constants.SM_OLONGAPO_LATITUDE, constants.SM_OLONGAPO_LONGITUDE) : const LatLng(constants.SM_PAMPANGA_LATITUDE, constants.SM_PAMPANGA_LONGITUDE); 
+    print("markers position : $busPosition $destination");
+
+    PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
+      constants.GOOLE_API_KEY, // Google Map API Key
+      PointLatLng(busPosition.latitude, busPosition.longitude),
+      PointLatLng(destination.latitude, destination.longitude),
+      travelMode: TravelMode.transit,
+    );
+    
+    if (result.points.isNotEmpty) {
+      List<LatLng> polylineCoordinates = [];
+      for (var point in result.points) {
+        polylineCoordinates.add(LatLng(point.latitude, point.longitude));
+      }
+      _addBusPolyLine(polylineCoordinates);
+    } else {
+      print(result.errorMessage);
+    }
+  }
+
+  // Fetching how many minutes and kilometers away
+  Future<void> fetchRouteInfo(PointLatLng origin, PointLatLng destination) async {
+    final String url =
+        'https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&key=${constants.GOOLE_API_KEY}';
+    
+    final response = await http.get(Uri.parse(url));
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = json.decode(response.body);
+      final routes = data['routes'] as List<dynamic>;
+      if (routes.isNotEmpty) {
+        final legs = routes[0]['legs'] as List<dynamic>;
+        if (legs.isNotEmpty) {
+          final distance = legs[0]['distance']['text'];
+          final duration = legs[0]['duration']['text'];
+          print('Distance: $distance, Duration: $duration');
+          setState(() {
+            minutesAway = duration;
+            kmAway = distance;
+          });
+        }
+
+      }
+    } else {
+      throw Exception('Failed to load route info');
+    }
+  }
+
+  // Getting the address of the bus  
+  Future<void> getAddress(double latitude, double longitude) async {
+    final url = 'https://maps.googleapis.com/maps/api/geocode/json?latlng=$latitude,$longitude&key=${constants.GOOLE_API_KEY}';
+
+    print("address url : ${url}");
+    final response = await http.get(Uri.parse(url));
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = json.decode(response.body);
+      if (data['status'] == 'OK') {
+        final results = data['results'] as List<dynamic>;
+        if (results.isNotEmpty) {
+          print('address ${data['results'][3]['formatted_address']}' );
+          setState(() {
+              busAddress = data['results'][3]['formatted_address'];
+          });
+          // String formattedAddress = results[0]['formatted_address'];
+          // return data['results'][3]['formatted_address'];
+        }
+
+      }
+    } else {
+          throw Exception('Failed to get address');
+    }
+    
+
+  }
+
+  //Creating custom icon for markers
+  Future<BitmapDescriptor> getCustomBusMarkerIcon() async {
+    // Read the bytes of the image asset
+    ByteData byteData = await rootBundle.load('assets/images/marker-icon.png');
+    Uint8List imageData = byteData.buffer.asUint8List();
+
+    // Resize the image to the desired dimensions
+    img.Image? image = img.decodeImage(imageData);
+    img.Image resizedImage = img.copyResize(image!, width: 80, height: 120); // Adjust dimensions as needed
+    Uint8List resizedImageData = Uint8List.fromList(img.encodePng(resizedImage));
+
+    // Create BitmapDescriptor from the resized image bytes
+    return BitmapDescriptor.fromBytes(resizedImageData);
   }
 
   Future<BitmapDescriptor> getCustomBusIcon() async {
@@ -181,74 +363,7 @@ class MapPageState extends State<MapPage> {
     return BitmapDescriptor.fromBytes(resizedImageData);
   }
 
-  void _addPickUpPoint(LatLng position) async {
-    Marker marker = Marker(
-      markerId: const MarkerId("PickUpPoint"),
-      position: position,
-      icon : await getCustomBusIcon()
-    );
-    setState(() {
-      _markers.add(marker);
-    });
-  }
-
-  // Function to calculate distance in kilometers between two LatLng points using Haversine formula
-  double calculateDistance(LatLng start, LatLng end) {
-    const double earthRadius = 6371.0; // Earth's radius in kilometers
-    double lat1Radians = start.latitude * (pi / 180);
-    double lat2Radians = end.latitude * (pi / 180);
-    double deltaLat = (end.latitude - start.latitude) * (pi / 180);
-    double deltaLon = (end.longitude - start.longitude) * (pi / 180);
-
-    double a = sin(deltaLat / 2) * sin(deltaLat / 2) +
-        cos(lat1Radians) * cos(lat2Radians) * sin(deltaLon / 2) * sin(deltaLon / 2);
-    double c = 2 * atan2(sqrt(a), sqrt(1 - a));
-    return earthRadius * c;
-  }
-
-  // Function to estimate time in minutes based on average speed (e.g., 50 km/h)
-  int estimateTime(double distanceInKm, double averageSpeedKmph) {
-    if (averageSpeedKmph <= 0) return 0;
-    return (distanceInKm / averageSpeedKmph * 60).round();
-  }
-
-
-  void _addPolyLine(List<LatLng> polylineCoordinates) {
-    PolylineId id = const PolylineId("poly");
-    Polyline polyline = Polyline(
-      polylineId: id,
-      color: Colors.blue,
-      points: polylineCoordinates,
-      width: 10,
-    );
-    setState(() {
-      _polylines.add(polyline);
-    });
-  }
-
-  Future<void> _getPolyline() async {
-    LatLng firstMarkerLatLng = _markers.first.position;
-    LatLng lastMarkerLatLng = _markers.last.position;
-    print("markers $_markers : $firstMarkerLatLng $lastMarkerLatLng");
-
-    PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
-      googleAPiKey, // Google Map API Key
-      PointLatLng(firstMarkerLatLng.latitude, firstMarkerLatLng.longitude),
-      PointLatLng(lastMarkerLatLng.latitude, lastMarkerLatLng.longitude),
-      travelMode: TravelMode.transit,
-    );
-    
-    if (result.points.isNotEmpty) {
-      List<LatLng> polylineCoordinates = [];
-      for (var point in result.points) {
-        polylineCoordinates.add(LatLng(point.latitude, point.longitude));
-      }
-      _addPolyLine(polylineCoordinates);
-    } else {
-      print(result.errorMessage);
-    }
-  }
-
+  //onTap function for creating a pickup point
   bool isMarkerOnMap(MarkerId markerId) {
     for (Marker marker in _markers) {
       if (marker.markerId == markerId) {
@@ -260,6 +375,7 @@ class MapPageState extends State<MapPage> {
 
   void _onTap(LatLng tapLatLng) {
     bool isOnPolyline = _isLocationOnPolyline(tapLatLng, _polylines.first.points);
+    print('my tapped location : ${tapLatLng}');
     if (isOnPolyline){
       if(isMarkerOnMap(const MarkerId("PickUpPoint"))){
           setState(() {
@@ -270,7 +386,10 @@ class MapPageState extends State<MapPage> {
       } else {
         _addPickUpPoint(tapLatLng);
       }
-
+      setState(() {
+        tappedLat = tapLatLng.latitude;
+        tappedLng = tapLatLng.longitude;
+      });
     }
   }
 
@@ -309,5 +428,25 @@ class MapPageState extends State<MapPage> {
 
   double _rad2deg(double rad) {
     return rad * (180.0 / pi);
+  }
+
+  // Function to calculate distance in kilometers between two LatLng points using Haversine formula
+  double calculateDistance(LatLng start, LatLng end) {
+    const double earthRadius = 6371.0; // Earth's radius in kilometers
+    double lat1Radians = start.latitude * (pi / 180);
+    double lat2Radians = end.latitude * (pi / 180);
+    double deltaLat = (end.latitude - start.latitude) * (pi / 180);
+    double deltaLon = (end.longitude - start.longitude) * (pi / 180);
+
+    double a = sin(deltaLat / 2) * sin(deltaLat / 2) +
+        cos(lat1Radians) * cos(lat2Radians) * sin(deltaLon / 2) * sin(deltaLon / 2);
+    double c = 2 * atan2(sqrt(a), sqrt(1 - a));
+    return earthRadius * c;
+  }
+
+  // Function to estimate time in minutes based on average speed (e.g., 30 km/h)
+  int estimateTime(double distanceInKm, double averageSpeedKmph) {
+    if (averageSpeedKmph <= 0) return 0;
+    return (distanceInKm / averageSpeedKmph * 60).round();
   }
 }

@@ -1,95 +1,214 @@
-import 'package:flutter/cupertino.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'dart:async';
+import 'package:flutter_polyline_points/flutter_polyline_points.dart';
+import 'package:flutter/services.dart';
 import 'package:para_po/screens/bus_list/bus_list.dart';
+import 'package:image/image.dart' as img; // Import image package for resizing
+import '../../utilities/constants/constants.dart' as constants;
 
-class Map extends StatefulWidget {
-  const Map({super.key});
+class MapScreen extends StatefulWidget {
+  const MapScreen({super.key});
 
   @override
-  State<Map> createState() => _MapState();
-}
+  MapScreenState createState() => MapScreenState();
+} 
+class MapScreenState extends State<MapScreen> {
 
-class _MapState extends State<Map> {
-  // final Completer<GoogleMapController> _controller =
-  //     Completer<GoogleMapController>();
-
-  static const CameraPosition _kGooglePlex = CameraPosition(
-    target: LatLng(15.0521, 120.6989),
-    zoom: 14.4746,
-  );
+   @override
+   void initState() {
+      super.initState();
+      // setCustomMapPin();
+   }
+  BitmapDescriptor pinLocationIcon = BitmapDescriptor.defaultMarker;
+  late GoogleMapController _controller;
+  Set<Marker> _markers = {};
+  Set<Polyline> _polylines = {};
+  PolylinePoints polylinePoints = PolylinePoints();
 
   @override
   Widget build(BuildContext context) {
-return Scaffold(
+    return Scaffold(
       appBar: AppBar(
-        title: const Center(child:  Text('Para po')),
-        automaticallyImplyLeading: false, // Disable back button
-        backgroundColor:Colors.lightGreen,
+        title: const Text('PARA PO', style: TextStyle(color: Colors.white),),
+                actions: <Widget>[
+          IconButton(
+            icon: const Icon(Icons.directions_bus, color: Colors.white,),
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const BusList()));
+            },
+          ),
+        ],
+        centerTitle: true,
+        automaticallyImplyLeading: false,
+        backgroundColor:Colors.blueGrey,
       ),
-body: Stack(
+      body: Stack(
         children: [
-          const GoogleMap(
-            initialCameraPosition: _kGooglePlex,
+          GoogleMap(
+            onMapCreated: _onMapCreated,
             mapType: MapType.normal,
             myLocationEnabled: true,
-          ),
-          Positioned(
-            top: 10,
-            left: 10,
-            right: 10,
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      width: 280, // Adjust the width as needed
-                      height: 30, // Adjust the height as needed
-                      decoration: BoxDecoration(
-                        color: Colors.white, // Background color
-                        borderRadius: BorderRadius.circular(8),
-                      // Rounded corners
-                      ),
-                      child: DropdownButton<String>(
-                         isExpanded: true,
-                        onChanged: (String? newValue) {
-                          // Handle dropdown value change
-                        },
-                        items: <String>["Sm Pampanga to Olongapo", "Olongapo to Sm Pampanga"]
-                        .map<DropdownMenuItem<String>>(
-                          (String value) => DropdownMenuItem<String>(value: value, child: Text(value))
-                        )
-                        .toList(),
-                        hint: const Text('Select a route'),
-                      ),
-                    ),
-                    const SizedBox(height: 10,),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      width: 280, // Adjust the width as needed
-                      height: 30, // Adjust the height as needed
-                      decoration: BoxDecoration(
-                        color: Colors.white, // Background color
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: TextFormField(
-                          decoration: const InputDecoration(
-                          contentPadding: EdgeInsets.symmetric(vertical: 7), 
-                          hintText: 'Enter your pickup point',
-                          border: InputBorder.none,
-                        ),
-                      ),
-                    )
-                  ],),
-                ),
-                ElevatedButton(onPressed: () { Navigator.push(context, MaterialPageRoute(builder: (context) => const BusList())); }, child: const Text("Bus List"))
-              ],
+            initialCameraPosition: const CameraPosition(
+              target: LatLng(14.8361, 120.2827),
+              zoom: 15,
             ),
+            markers: _markers,
+            polylines: _polylines,
+          ),
+
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance.collection('location').snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return Text('Error: ${snapshot.error}');
+              }
+
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const SizedBox();
+              }
+
+              snapshot.data!.docChanges.forEach((change) {
+                if (change.type == DocumentChangeType.added || change.type == DocumentChangeType.modified) {
+                  // Get the document data
+                  Map<String, dynamic> data = change.doc.data() as Map<String, dynamic>;
+                  double latitude = data[constants.LATITUDE];
+                  double longitude = data[constants.LONGITUDE];
+                  String markerId = data[constants.BUS_NUMBER];
+                  _addBusMarker(LatLng(latitude, longitude), MarkerId(markerId));
+                } 
+                // Deleting bus if applicable
+                // else if (change.type == DocumentChangeType.removed) {
+                //   // Remove marker if document is removed
+                //   String markerId = change.doc.id;
+                //   Marker? markerToRemove = _markers.firstWhere(
+                //     (marker) => marker.markerId.value == markerId,
+                //     orElse: () => null,
+                //   );2
+
+                //   if (markerToRemove != null) {
+                //     setState(() {
+                //       _markers.remove(markerToRemove);
+                //     });
+                //   }
+                // }
+              }
+              );
+
+              return SizedBox(); // Return an empty SizedBox since we're just updating markers
+            },
           ),
         ],
       ),
     );
   }
+
+  bool isMarkerOnMap(MarkerId markerId) {
+    for (Marker marker in _markers) {
+      if (marker.markerId == markerId) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  void _onMapCreated(GoogleMapController controller) {
+    setState(() {
+      _controller = controller;
+    });
+    // Add markers
+    _addMarker( const LatLng(constants.SM_OLONGAPO_LATITUDE, constants.SM_OLONGAPO_LONGITUDE)); // Point A
+    _addMarker( const LatLng(constants.SM_PAMPANGA_LATITUDE, constants.SM_PAMPANGA_LONGITUDE)); // Po  int B
+    // Fetch and draw polyline
+    _getPolyline();
+  }
+
+  void _addMarker(LatLng position) {
+    Marker marker = Marker(
+      markerId: MarkerId(position.toString()),
+      position: position,
+    );
+    setState(() {
+      _markers.add(marker);
+    });
+  }
+
+  void _addBusMarker(LatLng position, MarkerId id) async {
+    BitmapDescriptor customIcon = await getCustomBusIcon();
+    if(isMarkerOnMap(id)){ 
+        setState(() {
+          // Remove the old marker from the set
+          _markers.removeWhere((marker) => marker.markerId == id);
+          Marker marker = Marker(
+            markerId: id,
+            position: position,
+            icon : customIcon
+          );
+          setState(() {
+            _markers.add(marker);
+          });
+        });
+    } else {
+      Marker marker = Marker(
+        markerId: id,
+        position: position,
+        icon : customIcon
+      );
+      setState(() {
+        _markers.add(marker);
+      });
+    }
+  }
+
+  Future<BitmapDescriptor> getCustomBusIcon() async {
+    // Read the bytes of the image asset
+    ByteData byteData = await rootBundle.load('assets/images/marker-icon.png');
+    Uint8List imageData = byteData.buffer.asUint8List();
+
+    // Resize the image to the desired dimensions
+    img.Image? image = img.decodeImage(imageData);
+    img.Image resizedImage = img.copyResize(image!, width: 80, height: 120); // Adjust dimensions as needed
+    Uint8List resizedImageData = Uint8List.fromList(img.encodePng(resizedImage));
+
+    // Create BitmapDescriptor from the resized image bytes
+    return BitmapDescriptor.fromBytes(resizedImageData);
+  }
+
+  void _addPolyLine(List<LatLng> polylineCoordinates) {
+    PolylineId id = const PolylineId("poly");
+    Polyline polyline = Polyline(
+      polylineId: id,
+      color: Colors.blue,
+      points: polylineCoordinates,
+      width: 10,
+    );
+    setState(() {
+      _polylines.add(polyline);
+    });
+  }
+
+  Future<void> _getPolyline() async {
+    LatLng firstMarkerLatLng = _markers.first.position;
+    LatLng lastMarkerLatLng = _markers.last.position;
+    print("markers $_markers : $firstMarkerLatLng $lastMarkerLatLng");
+
+    PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
+      constants.GOOLE_API_KEY, // Google Map API Key
+      PointLatLng(firstMarkerLatLng.latitude, firstMarkerLatLng.longitude),
+      PointLatLng(lastMarkerLatLng.latitude, lastMarkerLatLng.longitude),
+      travelMode: TravelMode.transit,
+    );
+    
+    if (result.points.isNotEmpty) {
+      List<LatLng> polylineCoordinates = [];
+      for (var point in result.points) {
+        polylineCoordinates.add(LatLng(point.latitude, point.longitude));
+      }
+      _addPolyLine(polylineCoordinates);
+    } else {
+      print(result.errorMessage);
+    }
+  }
+
 }

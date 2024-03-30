@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:para_po/screens/map/directions_service.dart';
+import 'package:para_po/screens/map/map.dart';
 import '../../utilities/constants/constants.dart' as constants;
 
 class BusList extends StatefulWidget {
@@ -10,8 +12,8 @@ class BusList extends StatefulWidget {
 }
 
 class _BusListState extends State<BusList> {
-  final String pointA = "SM City Pampanga";
-  final String pointB = "SM City Pampanga";
+  final String pointA = "SM City Pampanga Terminal";
+  final String pointB = "SM Olongapo Terminal";
   final String isOngoing = "isOnGoing"; 
 
   @override
@@ -43,23 +45,45 @@ class _BusListState extends State<BusList> {
                       color: Colors.grey.withOpacity(0.5),
                       spreadRadius: 2,
                       blurRadius: 5,
-                      offset: const Offset(0, 2), // changes position of shadow
+                      offset: const Offset(0, 2),
                     ),
                   ],
                 ),
                 child: ListTile(
-                  title: Text('Bus ${snapshot.data!.docs[index][constants.BUS_NUMBER]} | ${snapshot.data!.docs[index][constants.BUS_PLATE_NUMBER]}'),
-                  subtitle: snapshot.data!.docs[index][isOngoing] ? Text(pointB) : Text(pointA),
-                  trailing: const Text("Text"),//const Expanded(child: Row(children: <Widget> [ Text("40 mins away") , Text("8 km away")],)),
+                  leading: const Icon(Icons.directions_bus), 
+                  title: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Plate Number: ${snapshot.data!.docs[index][constants.BUS_PLATE_NUMBER]}',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      Text(
+                        'Bus Number: ${snapshot.data!.docs[index][constants.BUS_NUMBER]}',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      Text(
+                        'Driver: ${snapshot.data!.docs[index][constants.DRIVER_NAME]}',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                  subtitle: snapshot.data!.docs[index][constants.IS_ON_GOING] 
+                    ? Text('Location: $pointB')
+                    : Text('Location: $pointA'),
                   onTap: () {
-                    // Handle bus item tap
+                     String busNumber = snapshot.data!.docs[index][constants.BUS_NUMBER];
+                     double busLat = snapshot.data!.docs[index][constants.LATITUDE];
+                     double busLng = snapshot.data!.docs[index][constants.LONGITUDE];
+                    // 
+                     Navigator.push(context, MaterialPageRoute(builder: (context) => MapPage(busNumber : busNumber, busLat: busLat, busLng: busLng))); 
                   },
                 ),
-                          );
-                        },
-                      );
-              }
-            ),
+              );
+            },
+          );
+        }
+      ),
     );
   }
 }
