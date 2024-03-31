@@ -248,6 +248,16 @@ class MapPageState extends State<MapPage> {
     });
   }
 
+
+  bool _isPolylineExisting(PolylineId polylineId) {
+    for (Polyline polyline in _polylines) {
+      if (polyline.polylineId == polylineId) {
+        return true;
+      }
+    }
+    return false;
+  }
+  
   //Putting the polylines of the map to location in screen
   void _addBusPolyLine(List<LatLng> polylineCoordinates) {
     PolylineId id = const PolylineId("BusPolyline");
@@ -257,6 +267,14 @@ class MapPageState extends State<MapPage> {
       points: polylineCoordinates,
       width: 10,
     );   
+
+    // Remove old polyline from set
+    if(_isPolylineExisting(PolylineId("BusPolyline"))){ 
+      setState(() {
+        _polylines.removeWhere((polyline) => polyline.polylineId == "BusPolyline");
+      });
+    }
+
     setState(() {
       _polylines.add(polyline);
     });
