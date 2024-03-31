@@ -12,6 +12,8 @@ import 'package:image/image.dart' as img; // Import image package for resizing
 import 'package:para_po/screens/map/map.dart';
 import '../../utilities/constants/constants.dart' as constants;
 import 'package:http/http.dart' as http;
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 
 class MapPage extends StatefulWidget {
   final String busNumber;
@@ -91,12 +93,16 @@ class MapPageState extends State<MapPage> {
                 return const Center(child: CircularProgressIndicator());
               }
                 snapshot.data!.docChanges.forEach((change) async {
-                  if (change.type == DocumentChangeType.added || change.type == DocumentChangeType.modified) {
                   Map<String, dynamic> data = change.doc.data() as Map<String, dynamic>;
-                    _addBusMarker(LatLng(widget.busLat, widget.busLng), MarkerId(widget.busNumber));
+                  if (change.type == DocumentChangeType.modified) {
+                    _addBusMarker(LatLng(data[constants.LATITUDE], data[constants.LONGITUDE]), MarkerId(widget.busNumber));
                     _updatingPolyline(LatLng(data[constants.LATITUDE], data[constants.LONGITUDE]), data[constants.IS_ON_GOING]);
-                    getAddress(data[constants.LATITUDE], data[constants.LONGITUDE]);
-                    isMarkerOnMap(const MarkerId("PickUpPoint")) ? fetchRouteInfo(PointLatLng(widget.busLat, widget.busLng), PointLatLng(tappedLat, tappedLng)) : null;
+                    _getAddressFromLatLng(data[constants.LATITUDE], data[constants.LONGITUDE]);
+                    isMarkerOnMap(const MarkerId("PickUpPoint")) ? fetchRouteInfo(PointLatLng(data[constants.LATITUDE], data[constants.LONGITUDE]), PointLatLng(tappedLat, tappedLng)) : null;
+                  } else {
+                    _addBusMarker(LatLng(data[constants.LATITUDE], data[constants.LONGITUDE]), MarkerId(widget.busNumber));
+                    _updatingPolyline(LatLng(data[constants.LATITUDE], data[constants.LONGITUDE]), data[constants.IS_ON_GOING]);
+                    _getAddressFromLatLng(data[constants.LATITUDE], data[constants.LONGITUDE]);
                   }
                 });
               return Positioned(
@@ -265,6 +271,7 @@ class MapPageState extends State<MapPage> {
       PointLatLng(busPosition.latitude, busPosition.longitude),
       PointLatLng(destination.latitude, destination.longitude),
       travelMode: TravelMode.transit,
+      optimizeWaypoints: true,
     );
     
     if (result.points.isNotEmpty) {
@@ -306,32 +313,46 @@ class MapPageState extends State<MapPage> {
     }
   }
 
-  // Getting the address of the bus  
-  Future<void> getAddress(double latitude, double longitude) async {
-    final url = 'https://maps.googleapis.com/maps/api/geocode/json?latlng=$latitude,$longitude&key=${constants.GOOLE_API_KEY}';
+  // // Getting the address of the bus  
+  // Future<void> getAddress(double latitude, double longitude) async {
+  //   final url = 'https://maps.googleapis.com/maps/api/geocode/json?latlng=$latitude,$longitude&key=${constants.GOOLE_API_KEY}';
 
-    print("address url : ${url}");
-    final response = await http.get(Uri.parse(url));
+  //   print("address url : ${url}");
+  //   final response = await http.get(Uri.parse(url));
 
-    if (response.statusCode == 200) {
-      final Map<String, dynamic> data = json.decode(response.body);
-      if (data['status'] == 'OK') {
-        final results = data['results'] as List<dynamic>;
-        if (results.isNotEmpty) {
-          print('address ${data['results'][3]['formatted_address']}' );
-          setState(() {
-              busAddress = data['results'][3]['formatted_address'];
-          });
-          // String formattedAddress = results[0]['formatted_address'];
-          // return data['results'][3]['formatted_address'];
-        }
+  //   if (response.statusCode == 200) {
+  //     final Map<String, dynamic> data = json.decode(response.body);
+  //     if (data['status'] == 'OK') {
+  //       final results = data['results'] as List<dynamic>;
+  //       if (results.isNotEmpty) {
+  //         print('address ${data['results'][3]['formatted_address']}' );
+  //         setState(() {
+  //             busAddress = data['results'][3]['formatted_address'];
+  //         });
+  //         // String formattedAddress = results[0]['formatted_address'];
+  //         // return data['results'][3]['formatted_address'];
+  //       }
 
+  //     }
+  //   } else {
+  //         throw Exception('Failed to get address');
+  //   }
+  // }
+
+  Future<void> _getAddressFromLatLng(double latitude, double longitude) async {
+    try {
+      List<Placemark> placemarks = await placemarkFromCoordinates(latitude, longitude); // Provide your latitude and longitude here
+      if (placemarks != null && placemarks.isNotEmpty) {
+        Placemark placemark = placemarks[0];
+        print('placemark $placemark');
+        String address = '${placemark.locality ?? ''}, ${placemark.subAdministrativeArea ?? ''}, ${placemark.country ?? ''}';
+        setState(() {
+          busAddress = address;
+        });
       }
-    } else {
-          throw Exception('Failed to get address');
+    } catch (e) {
+      print(e);
     }
-    
-
   }
 
   //Creating custom icon for markers
@@ -377,6 +398,7 @@ class MapPageState extends State<MapPage> {
     bool isOnPolyline = _isLocationOnPolyline(tapLatLng, _polylines.first.points);
     print('my tapped location : ${tapLatLng}');
     if (isOnPolyline){
+      fetchRouteInfo(PointLatLng(widget.busLat, widget.busLng), PointLatLng(tapLatLng.latitude, tapLatLng.longitude));
       if(isMarkerOnMap(const MarkerId("PickUpPoint"))){
           setState(() {
             // Remove the old marker from the set
@@ -431,18 +453,14 @@ class MapPageState extends State<MapPage> {
   }
 
   // Function to calculate distance in kilometers between two LatLng points using Haversine formula
-  double calculateDistance(LatLng start, LatLng end) {
-    const double earthRadius = 6371.0; // Earth's radius in kilometers
-    double lat1Radians = start.latitude * (pi / 180);
-    double lat2Radians = end.latitude * (pi / 180);
-    double deltaLat = (end.latitude - start.latitude) * (pi / 180);
-    double deltaLon = (end.longitude - start.longitude) * (pi / 180);
+    double calculateDistance(lat1, lon1, lat2, lon2){
+      var p = 0.017453292519943295;
+      var a = 0.5 - cos((lat2 - lat1) * p)/2 + 
+            cos(lat1 * p) * cos(lat2 * p) * 
+            (1 - cos((lon2 - lon1) * p))/2;
+      return 12742 * asin(sqrt(a));
+    }
 
-    double a = sin(deltaLat / 2) * sin(deltaLat / 2) +
-        cos(lat1Radians) * cos(lat2Radians) * sin(deltaLon / 2) * sin(deltaLon / 2);
-    double c = 2 * atan2(sqrt(a), sqrt(1 - a));
-    return earthRadius * c;
-  }
 
   // Function to estimate time in minutes based on average speed (e.g., 30 km/h)
   int estimateTime(double distanceInKm, double averageSpeedKmph) {
