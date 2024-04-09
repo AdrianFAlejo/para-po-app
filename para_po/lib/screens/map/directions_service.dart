@@ -1,20 +1,22 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'dart:async';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:para_po/screens/bus_list/bus_list.dart';
 import 'package:image/image.dart' as img; // Import image package for resizing
-import 'package:para_po/screens/map/map.dart';
 import '../../utilities/constants/constants.dart' as constants;
 import 'package:http/http.dart' as http;
-import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../home_page.dart';
 
 class MapPage extends StatefulWidget {
   final String busNumber;
@@ -40,17 +42,21 @@ class MapPageState extends State<MapPage> {
     SharedPreferences info = await SharedPreferences.getInstance();
     double? savedLat = double.tryParse(info.getString('prevLat') ?? '');
     double? savedLng = double.tryParse(info.getString('prevLng') ?? '');
+    bool? hasSavedNotif = info.getBool('hasSavedNotif') ?? false;
     String? savedBusNumber = info.getString('busNumber');
 
     if(savedBusNumber == widget.busNumber){
       setState(() {
         tappedLat = savedLat ?? 0.0;
         tappedLng = savedLng ?? 0.0;
+        hasNotif = hasSavedNotif;
       });
       if(tappedLat != 0.0 && tappedLng != 0.0){
         _addPickUpPoint(LatLng(tappedLat, tappedLng));
         fetchRouteInfo(PointLatLng(widget.busLat, widget.busLng), PointLatLng(tappedLat, tappedLng));
       }
+    }else{
+      info.setBool('hasSavedNotif', false);
     }
   }
 
@@ -82,6 +88,7 @@ class MapPageState extends State<MapPage> {
   double lat = 15.036130714199096;
   double lng = 120.67860982275572;
   bool _functionsExecuted = false;
+  bool hasNotif = false;
 
   @override
   Widget build(BuildContext context) {
@@ -103,7 +110,7 @@ class MapPageState extends State<MapPage> {
             onPressed: () {
               // Your custom function here
               // For example:
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const MapScreen())); // Navigate to home screen
+              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const HomePage())); // Navigate to home screen
             },
           ),
         backgroundColor:Colors.blueGrey,
@@ -345,6 +352,34 @@ class MapPageState extends State<MapPage> {
     }
   }
 
+  int calculateTotalMinutes(String minutesAway) {
+    // Split the string into individual parts
+    List<String> parts = minutesAway.split(' ');
+
+    int totalMinutes = 0;
+
+    for (int i = 0; i < parts.length; i += 2) {
+      int value = int.parse(parts[i]);
+      String unit = parts[i + 1];
+
+      // Convert hours to minutes
+      if (unit.startsWith('h')) {
+        totalMinutes += value * 60;
+      }
+      // Add directly for minutes
+      else if (unit.startsWith('m')) {
+        totalMinutes += value;
+      }
+    }
+
+    int result = totalMinutes - 5;
+    if (result >= 0) {
+      return result;
+    } else {
+      return 0;
+    }
+  }
+
   // Fetching how many minutes and kilometers away
   Future<void> fetchRouteInfo(PointLatLng origin, PointLatLng destination) async {
     final String url =
@@ -357,6 +392,7 @@ class MapPageState extends State<MapPage> {
       final routes = data['routes'] as List<dynamic>;
       if (routes.isNotEmpty) {
         final legs = routes[0]['legs'] as List<dynamic>;
+        print(legs);
         if (legs.isNotEmpty) {
           final distance = legs[0]['distance']['text'];
           final duration = legs[0]['duration']['text'];
@@ -365,6 +401,28 @@ class MapPageState extends State<MapPage> {
             minutesAway = duration;
             kmAway = distance;
           });
+
+          int minutes = calculateTotalMinutes(minutesAway);
+
+          if(!hasNotif && minutes >= 5){
+            DateTime notif = DateTime.now().add(Duration(minutes: minutes));
+
+            AwesomeNotifications().createNotification(
+              schedule: NotificationCalendar.fromDate(date: notif),
+              content: NotificationContent(
+                id: 1, 
+                channelKey: 'notification_channel',
+                title: 'Get Ready',
+                body: 'Your bus will be in your selected pin around ${DateFormat("h:mma").format(notif)}',
+            ));
+
+            setState(() {
+              hasNotif = true;
+            });
+            
+            SharedPreferences store = await SharedPreferences.getInstance();
+            store.setBool('hasSavedNotif', true);
+          }
         }
 
       }

@@ -1,3 +1,4 @@
+import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:para_po/screens/home_page.dart';
@@ -5,6 +6,25 @@ import 'package:para_po/screens/home_page.dart';
 Future main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  await AwesomeNotifications().initialize(
+    null,
+    [
+      NotificationChannel(
+        channelGroupKey: 'notification_channel_group',
+        channelKey: 'notification_channel', 
+        channelName: 'notification_channel', 
+        channelDescription: 'channel for notification')
+    ],
+    channelGroups: [
+      NotificationChannelGroup(
+        channelGroupKey: 'notification_channel_group', 
+        channelGroupName: 'notification_channel_group')
+    ]
+  );
+  bool isAllowedNotification = await AwesomeNotifications().isNotificationAllowed();
+  if(!isAllowedNotification){
+    AwesomeNotifications().requestPermissionToSendNotifications();
+  }
   runApp(const MyApp());
 }
 

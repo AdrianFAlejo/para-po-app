@@ -1,6 +1,9 @@
+import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:flutter/material.dart';
 import 'package:para_po/screens/map/map.dart';
 import 'package:para_po/screens/map/directions_service.dart';
+
+import '../service/notificationController.dart';
 // import 'package:para_po/screens/bus_list/bus_list.dart';
 
 class HomePage extends StatefulWidget {
@@ -14,8 +17,15 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void initState() {
+    AwesomeNotifications().setListeners(
+    onActionReceivedMethod: NotificationController.onActionReceivedMethod,
+    onNotificationCreatedMethod:
+        NotificationController.onNotificationCreatedMethod,
+    onNotificationDisplayedMethod:
+        NotificationController.onNotificationDisplayedMethod,
+    onDismissActionReceivedMethod:
+        NotificationController.onDismissActionReceivedMethod);
     super.initState();
-
   }
 
   @override
