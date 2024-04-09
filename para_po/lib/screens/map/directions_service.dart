@@ -14,6 +14,7 @@ import '../../utilities/constants/constants.dart' as constants;
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MapPage extends StatefulWidget {
   final String busNumber;
@@ -27,10 +28,41 @@ class MapPage extends StatefulWidget {
 } 
 class MapPageState extends State<MapPage> {
 
-   @override
-   void initState() {
-      super.initState();
-   }
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedData();
+  }
+
+  // Load saved data from SharedPreferences
+  Future<void> _loadSavedData() async {
+
+    SharedPreferences info = await SharedPreferences.getInstance();
+    double? savedLat = double.tryParse(info.getString('prevLat') ?? '');
+    double? savedLng = double.tryParse(info.getString('prevLng') ?? '');
+    String? savedBusNumber = info.getString('busNumber');
+
+    if(savedBusNumber == widget.busNumber){
+      setState(() {
+        tappedLat = savedLat ?? 0.0;
+        tappedLng = savedLng ?? 0.0;
+      });
+      if(tappedLat != 0.0 && tappedLng != 0.0){
+        _addPickUpPoint(LatLng(tappedLat, tappedLng));
+        fetchRouteInfo(PointLatLng(widget.busLat, widget.busLng), PointLatLng(tappedLat, tappedLng));
+      }
+    }
+  }
+
+  // Save data to SharedPreferences
+  Future<void> saveData(Map<String, String> data) async {
+    SharedPreferences store = await SharedPreferences.getInstance();
+    data.forEach((key, value) {
+      store.setString(key, value);
+    });
+  }
+
+
   BitmapDescriptor pinLocationIcon = BitmapDescriptor.defaultMarker;
   late GoogleMapController _controller;
   Set<Marker> _markers = {};
@@ -46,6 +78,10 @@ class MapPageState extends State<MapPage> {
   dynamic busAddress = 'Loading address...';
 
   late Object busInfo;
+
+  double lat = 15.036130714199096;
+  double lng = 120.67860982275572;
+  bool _functionsExecuted = false;
 
   @override
   Widget build(BuildContext context) {
@@ -99,7 +135,12 @@ class MapPageState extends State<MapPage> {
                     _updatingPolyline(LatLng(data[constants.LATITUDE], data[constants.LONGITUDE]), data[constants.IS_ON_GOING]);
                     _getAddressFromLatLng(data[constants.LATITUDE], data[constants.LONGITUDE]);
                     isMarkerOnMap(const MarkerId("PickUpPoint")) ? fetchRouteInfo(PointLatLng(data[constants.LATITUDE], data[constants.LONGITUDE]), PointLatLng(tappedLat, tappedLng)) : null;
-                  } else {
+                  } 
+            
+                  if (!_functionsExecuted) {
+                    // Set the flag to true to indicate that the functions have been executed
+                     _functionsExecuted = true;
+                    // Execute the functions you want to run only once
                     _addBusMarker(LatLng(data[constants.LATITUDE], data[constants.LONGITUDE]), MarkerId(widget.busNumber));
                     _updatingPolyline(LatLng(data[constants.LATITUDE], data[constants.LONGITUDE]), data[constants.IS_ON_GOING]);
                     _getAddressFromLatLng(data[constants.LATITUDE], data[constants.LONGITUDE]);
@@ -289,6 +330,7 @@ class MapPageState extends State<MapPage> {
       PointLatLng(busPosition.latitude, busPosition.longitude),
       PointLatLng(destination.latitude, destination.longitude),
       travelMode: TravelMode.transit,
+      avoidTolls: true,
       optimizeWaypoints: true,
     );
     
@@ -412,10 +454,15 @@ class MapPageState extends State<MapPage> {
     return false;
   }
 
-  void _onTap(LatLng tapLatLng) {
+  void _onTap(LatLng tapLatLng) async {
     bool isOnPolyline = _isLocationOnPolyline(tapLatLng, _polylines.first.points);
     print('my tapped location : ${tapLatLng}');
     if (isOnPolyline){
+      await saveData({
+        'prevLat': tapLatLng.latitude.toString(),
+        'prevLng': tapLatLng.longitude.toString(),
+        'busNumber': widget.busNumber,
+      });
       fetchRouteInfo(PointLatLng(widget.busLat, widget.busLng), PointLatLng(tapLatLng.latitude, tapLatLng.longitude));
       if(isMarkerOnMap(const MarkerId("PickUpPoint"))){
           setState(() {

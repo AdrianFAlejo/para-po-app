@@ -16,11 +16,11 @@ class MapScreen extends StatefulWidget {
 } 
 class MapScreenState extends State<MapScreen> {
 
-   @override
-   void initState() {
-      super.initState();
+  @override
+  void initState() {
+    super.initState();
       // setCustomMapPin();
-   }
+  }
   BitmapDescriptor pinLocationIcon = BitmapDescriptor.defaultMarker;
   late GoogleMapController _controller;
   Set<Marker> _markers = {};
@@ -198,6 +198,7 @@ class MapScreenState extends State<MapScreen> {
       PointLatLng(firstMarkerLatLng.latitude, firstMarkerLatLng.longitude),
       PointLatLng(lastMarkerLatLng.latitude, lastMarkerLatLng.longitude),
       travelMode: TravelMode.transit,
+      optimizeWaypoints: true,
     );
     
     if (result.points.isNotEmpty) {

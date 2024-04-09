@@ -5,7 +5,7 @@ const String LATITUDE = 'lat';
 const String LONGITUDE = 'long';
 const String IS_ON_GOING = 'isOnGoing'; 
 
-const String GOOLE_API_KEY = "AIzaSyBt04ZkRZ8kgz6c0eb3nhUCCCAjbUnqNHQ";
+const String GOOLE_API_KEY = "AIzaSyCeRE60lW3E_5Q3oIgjWegaDBQ8IXqSFVs";
 
 const double SM_OLONGAPO_LATITUDE = 14.8361;
 const double SM_OLONGAPO_LONGITUDE = 120.2827;
