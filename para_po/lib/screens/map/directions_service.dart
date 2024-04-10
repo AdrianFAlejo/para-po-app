@@ -413,7 +413,7 @@ class MapPageState extends State<MapPage> {
                 id: 1, 
                 channelKey: 'notification_channel',
                 title: 'Get Ready',
-                body: 'Your bus will be in your selected pin around ${DateFormat("h:mma").format(notif)}',
+                body: 'Your bus will be in your selected pin around ${DateFormat("h:mma").format(notif.add(const Duration(minutes: 5)))}',
             ));
 
             setState(() {
