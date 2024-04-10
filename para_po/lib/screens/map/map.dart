@@ -102,7 +102,11 @@ class _MapState extends State<Map> {
     PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
       constants.GOOLE_API_KEY,
       PointLatLng(pointALocation.latitude, pointALocation.longitude),
-      PointLatLng(pointBLocation.latitude, pointBLocation.longitude));
+      PointLatLng(pointBLocation.latitude, pointBLocation.longitude),
+      travelMode: TravelMode.transit,
+      avoidTolls: true,
+      optimizeWaypoints: true,
+      );
     
     if(result.points.isNotEmpty){
       for (var point in result.points) {
