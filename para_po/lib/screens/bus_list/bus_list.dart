@@ -23,6 +23,9 @@ class _BusListState extends State<BusList> {
         title: const Text('Available Busses', style: TextStyle(color: Colors.white),),
         backgroundColor:Colors.blueGrey,
         centerTitle: true,
+        iconTheme: const IconThemeData(
+          color: Colors.white, // Change the color here
+        ),
       ),
       backgroundColor: Colors.white,
             body: StreamBuilder<Object>(

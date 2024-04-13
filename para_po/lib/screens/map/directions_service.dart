@@ -139,7 +139,7 @@ class MapPageState extends State<MapPage> {
                   Map<String, dynamic> data = change.doc.data() as Map<String, dynamic>;
                   if (change.type == DocumentChangeType.modified) {
                     _addBusMarker(LatLng(data[constants.LATITUDE], data[constants.LONGITUDE]), MarkerId(widget.busNumber));
-                    _updatingPolyline(LatLng(data[constants.LATITUDE], data[constants.LONGITUDE]), data[constants.IS_ON_GOING]);
+                    // _updatingPolyline(LatLng(data[constants.LATITUDE], data[constants.LONGITUDE]), data[constants.IS_ON_GOING]);
                     _getAddressFromLatLng(data[constants.LATITUDE], data[constants.LONGITUDE]);
                     isMarkerOnMap(const MarkerId("PickUpPoint")) ? fetchRouteInfo(PointLatLng(data[constants.LATITUDE], data[constants.LONGITUDE]), PointLatLng(tappedLat, tappedLng)) : null;
                   } 
@@ -149,7 +149,7 @@ class MapPageState extends State<MapPage> {
                      _functionsExecuted = true;
                     // Execute the functions you want to run only once
                     _addBusMarker(LatLng(data[constants.LATITUDE], data[constants.LONGITUDE]), MarkerId(widget.busNumber));
-                    _updatingPolyline(LatLng(data[constants.LATITUDE], data[constants.LONGITUDE]), data[constants.IS_ON_GOING]);
+                    // _updatingPolyline(LatLng(data[constants.LATITUDE], data[constants.LONGITUDE]), data[constants.IS_ON_GOING]);
                     _getAddressFromLatLng(data[constants.LATITUDE], data[constants.LONGITUDE]);
                   }
                 });
@@ -159,7 +159,7 @@ class MapPageState extends State<MapPage> {
                 bottom: 16,
                 child: isMarkerOnMap(const MarkerId("PickUpPoint")) ?
                   Container(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.fromLTRB(16, 16, 0, 0),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(10),
@@ -172,61 +172,76 @@ class MapPageState extends State<MapPage> {
                         ),
                       ],
                     ),
-                    child: Row(
+                    child: Stack(
                       children: [
-                        const Icon(Icons.directions_bus, color: Colors.blue, size: 36),
-                        const SizedBox(width: 16),
-                        Flexible(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${snapshot.data!.docs.singleWhere((element) => element.get(constants.BUS_NUMBER) == widget.busNumber)[constants.BUS_PLATE_NUMBER]}',
-                                style: const TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Driver name: ${snapshot.data!.docs.singleWhere((element) => element.get(constants.BUS_NUMBER) == widget.busNumber)[constants.DRIVER_NAME]}',
-                                style: const TextStyle(color: Colors.black),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Bus number: ${snapshot.data!.docs.singleWhere((element) => element.get(constants.BUS_NUMBER) == widget.busNumber)[constants.BUS_NUMBER]}',
-                                style: const TextStyle(color: Colors.black),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                busAddress,
-                                style: const TextStyle(color: Colors.black),
-                              ),
-                              const SizedBox(height: 4),
-                              Row(
+                        Row(
+                          children: [
+                            const Icon(Icons.directions_bus, color: Colors.blue, size: 36),
+                            const SizedBox(width: 16),
+                            Flexible(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Icon(Icons.access_time, color: Colors.grey, size: 16),
-                                  const SizedBox(width: 4),
                                   Text(
-                                    '$minutesAway away from your pin',
+                                    '${snapshot.data!.docs.singleWhere((element) => element.get(constants.BUS_NUMBER) == widget.busNumber)[constants.BUS_PLATE_NUMBER]}',
+                                    style: const TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Driver name: ${snapshot.data!.docs.singleWhere((element) => element.get(constants.BUS_NUMBER) == widget.busNumber)[constants.DRIVER_NAME]}',
                                     style: const TextStyle(color: Colors.black),
                                   ),
-                                ],
-                              ),
-                              Row(
-                                children: [
-                                  const Icon(Icons.location_on, color: Colors.grey, size: 16),
-                                  const SizedBox(width: 4),
+                                  const SizedBox(height: 4),
                                   Text(
-                                    '$kmAway away from your pin',
+                                    'Bus number: ${snapshot.data!.docs.singleWhere((element) => element.get(constants.BUS_NUMBER) == widget.busNumber)[constants.BUS_NUMBER]}',
                                     style: const TextStyle(color: Colors.black),
                                   ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    busAddress,
+                                    style: const TextStyle(color: Colors.black),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.access_time, color: Colors.grey, size: 16),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        '$minutesAway away from your pin',
+                                        style: const TextStyle(color: Colors.black),
+                                      ),
+                                    ],
+                                  ),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.location_on, color: Colors.grey, size: 16),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        '$kmAway away from your pin',
+                                        style: const TextStyle(color: Colors.black),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 16),
                                 ],
                               ),
-                            ],
+                            ),
+                          ],
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () {
+                              deleteSavedLoc();
+                            },
                           ),
                         ),
                       ],
                     ),
-                  )
-                  : const SizedBox()
+                  )  
+                : const SizedBox()
               );
             }
           )
@@ -243,6 +258,7 @@ class MapPageState extends State<MapPage> {
     // Add markers
     _addMarker( const LatLng(constants.SM_OLONGAPO_LATITUDE, constants.SM_OLONGAPO_LONGITUDE)); // Point A
     _addMarker( const LatLng(constants.SM_PAMPANGA_LATITUDE, constants.SM_PAMPANGA_LONGITUDE)); // Po  int B
+    _updatingPolyline(const LatLng(constants.SM_OLONGAPO_LATITUDE, constants.SM_OLONGAPO_LONGITUDE), false);
   }
 
   //Adding markers to the map
@@ -372,9 +388,8 @@ class MapPageState extends State<MapPage> {
       }
     }
 
-    int result = totalMinutes - 5;
-    if (result >= 0) {
-      return result;
+    if (totalMinutes >= 0) {
+      return totalMinutes;
     } else {
       return 0;
     }
@@ -403,25 +418,32 @@ class MapPageState extends State<MapPage> {
           });
 
           int minutes = calculateTotalMinutes(minutesAway);
+          
+          SharedPreferences notifData = await SharedPreferences.getInstance();
+          String notifID = notifData.getString('notifID') ?? '';
+          double? prevLat = double.tryParse(notifData.getString('prevLat') ?? '');
+          double? prevLng= double.tryParse(notifData.getString('prevLng') ?? '');
 
-          if(!hasNotif && minutes >= 5){
-            DateTime notif = DateTime.now().add(Duration(minutes: minutes));
+          if(minutes > 5 && (prevLat != destination.latitude && prevLng != destination.longitude)){
+            if(notifID.isNotEmpty){
+              await AwesomeNotifications().cancelAll();
+              print("Nagdelete ng notification");
+            }
+              saveData({
+                "notifID" : widget.busNumber
+              });
 
-            AwesomeNotifications().createNotification(
-              schedule: NotificationCalendar.fromDate(date: notif),
-              content: NotificationContent(
-                id: 1, 
-                channelKey: 'notification_channel',
-                title: 'Get Ready',
-                body: 'Your bus will be in your selected pin around ${DateFormat("h:mma").format(notif.add(const Duration(minutes: 5)))}',
-            ));
+              DateTime notif = DateTime.now().add(Duration(minutes: minutes - 5));
+              print("Created ang notification $notif");
+              AwesomeNotifications().createNotification(
+                schedule: NotificationCalendar.fromDate(date: notif),
+                content: NotificationContent(
+                  id: 1, 
+                  channelKey: 'notification_channel',
+                  title: 'Get Ready!',
+                  body: 'Your bus will be in your selected pin around 5 minutes', 
+              ));
 
-            setState(() {
-              hasNotif = true;
-            });
-            
-            SharedPreferences store = await SharedPreferences.getInstance();
-            store.setBool('hasSavedNotif', true);
           }
         }
 
@@ -516,12 +538,12 @@ class MapPageState extends State<MapPage> {
     bool isOnPolyline = _isLocationOnPolyline(tapLatLng, _polylines.first.points);
     print('my tapped location : ${tapLatLng}');
     if (isOnPolyline){
+      await fetchRouteInfo(PointLatLng(widget.busLat, widget.busLng), PointLatLng(tapLatLng.latitude, tapLatLng.longitude));
       await saveData({
         'prevLat': tapLatLng.latitude.toString(),
         'prevLng': tapLatLng.longitude.toString(),
         'busNumber': widget.busNumber,
       });
-      fetchRouteInfo(PointLatLng(widget.busLat, widget.busLng), PointLatLng(tapLatLng.latitude, tapLatLng.longitude));
       if(isMarkerOnMap(const MarkerId("PickUpPoint"))){
           setState(() {
             // Remove the old marker from the set
@@ -536,6 +558,18 @@ class MapPageState extends State<MapPage> {
         tappedLng = tapLatLng.longitude;
       });
     }
+  }
+
+  void deleteSavedLoc() async {
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+    await preferences.clear();
+    AwesomeNotifications().cancelAll();
+    print("Delete all notification");
+    setState(() {
+      _markers.removeWhere((marker) => marker.markerId == const MarkerId("PickUpPoint"));
+      tappedLat = 0.0;
+      tappedLng = 0.0;
+    }); 
   }
 
   bool _isLocationOnPolyline(LatLng tapLatLng, List<LatLng> polylineCoordinates) {

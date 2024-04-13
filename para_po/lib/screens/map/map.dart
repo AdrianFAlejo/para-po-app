@@ -198,6 +198,7 @@ class MapScreenState extends State<MapScreen> {
       PointLatLng(firstMarkerLatLng.latitude, firstMarkerLatLng.longitude),
       PointLatLng(lastMarkerLatLng.latitude, lastMarkerLatLng.longitude),
       travelMode: TravelMode.transit,
+      avoidTolls: true,
       optimizeWaypoints: true,
     );
     
