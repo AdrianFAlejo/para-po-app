@@ -43,6 +43,7 @@ class MapPageState extends State<MapPage> {
     double? savedLat = double.tryParse(info.getString('prevLat') ?? '');
     double? savedLng = double.tryParse(info.getString('prevLng') ?? '');
     bool? hasSavedNotif = info.getBool('hasSavedNotif') ?? false;
+    bool? isSavedNearby = info.getBool('isSavedNearby') ?? false;
     String? savedBusNumber = info.getString('busNumber');
 
     if(savedBusNumber == widget.busNumber){
@@ -50,6 +51,7 @@ class MapPageState extends State<MapPage> {
         tappedLat = savedLat ?? 0.0;
         tappedLng = savedLng ?? 0.0;
         hasNotif = hasSavedNotif;
+        isNearby = isSavedNearby;
       });
       if(tappedLat != 0.0 && tappedLng != 0.0){
         _addPickUpPoint(LatLng(tappedLat, tappedLng));
@@ -57,6 +59,7 @@ class MapPageState extends State<MapPage> {
       }
     }else{
       info.setBool('hasSavedNotif', false);
+      info.setBool('isSavedNearby', false);
     }
   }
 
@@ -66,6 +69,13 @@ class MapPageState extends State<MapPage> {
     data.forEach((key, value) {
       store.setString(key, value);
     });
+  }
+
+  //reset hasSavedNotif to trigger add notif
+  Future<void> returnHome() async {
+    AwesomeNotifications().cancelAll();
+    SharedPreferences info = await SharedPreferences.getInstance();
+    info.setBool('hasSavedNotif', false);
   }
 
 
@@ -89,6 +99,7 @@ class MapPageState extends State<MapPage> {
   double lng = 120.67860982275572;
   bool _functionsExecuted = false;
   bool hasNotif = false;
+  bool isNearby = false;
 
   @override
   Widget build(BuildContext context) {
@@ -98,19 +109,35 @@ class MapPageState extends State<MapPage> {
                 actions: <Widget>[
           IconButton(
             icon: const Icon(Icons.directions_bus, color: Colors.white,),
-            onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const BusList()));
-            },
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const BusList()))
           ),
         ],
         centerTitle: true,
         automaticallyImplyLeading: false,
         leading: IconButton(
             icon: const Icon(Icons.home, color: Colors.white),
-            onPressed: () {
-              // Your custom function here
-              // For example:
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const HomePage())); // Navigate to home screen
+            onPressed:
+              () {
+              showDialog(
+                context: context, 
+                builder: (context) => AlertDialog(
+                  backgroundColor: Colors.white,
+                  title: const Text('Home'),
+                  content: const Text("You'll lose track of your chosen bus if you navigate back to the homepage. Do you want to continue?"),
+                  actions: [
+                    TextButton(
+                      child: const Text('No'),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    TextButton(
+                      child: const Text('Yes'),
+                      onPressed: () => {
+                        returnHome(),
+                        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const HomePage()))
+                      }
+                    )
+                  ],
+                ));
             },
           ),
         backgroundColor:Colors.blueGrey,
@@ -135,24 +162,25 @@ class MapPageState extends State<MapPage> {
               if(!snapshot.hasData){
                 return const Center(child: CircularProgressIndicator());
               }
-                snapshot.data!.docChanges.forEach((change) async {
-                  Map<String, dynamic> data = change.doc.data() as Map<String, dynamic>;
-                  if (change.type == DocumentChangeType.modified) {
-                    _addBusMarker(LatLng(data[constants.LATITUDE], data[constants.LONGITUDE]), MarkerId(widget.busNumber));
-                    // _updatingPolyline(LatLng(data[constants.LATITUDE], data[constants.LONGITUDE]), data[constants.IS_ON_GOING]);
-                    _getAddressFromLatLng(data[constants.LATITUDE], data[constants.LONGITUDE]);
-                    isMarkerOnMap(const MarkerId("PickUpPoint")) ? fetchRouteInfo(PointLatLng(data[constants.LATITUDE], data[constants.LONGITUDE]), PointLatLng(tappedLat, tappedLng)) : null;
-                  } 
-            
-                  if (!_functionsExecuted) {
-                    // Set the flag to true to indicate that the functions have been executed
-                     _functionsExecuted = true;
-                    // Execute the functions you want to run only once
-                    _addBusMarker(LatLng(data[constants.LATITUDE], data[constants.LONGITUDE]), MarkerId(widget.busNumber));
-                    // _updatingPolyline(LatLng(data[constants.LATITUDE], data[constants.LONGITUDE]), data[constants.IS_ON_GOING]);
-                    _getAddressFromLatLng(data[constants.LATITUDE], data[constants.LONGITUDE]);
-                  }
-                });
+              for (var change in snapshot.data!.docChanges) {
+                Map<String, dynamic> data = change.doc.data() as Map<String, dynamic>;
+                
+                if (change.type == DocumentChangeType.modified) {
+                  _addBusMarker(LatLng(data[constants.LATITUDE], data[constants.LONGITUDE]), MarkerId(widget.busNumber));
+                  // _updatingPolyline(LatLng(data[constants.LATITUDE], data[constants.LONGITUDE]), data[constants.IS_ON_GOING]);
+                  _getAddressFromLatLng(data[constants.LATITUDE], data[constants.LONGITUDE]);
+                  isMarkerOnMap(const MarkerId("PickUpPoint")) ? fetchRouteInfo(PointLatLng(data[constants.LATITUDE], data[constants.LONGITUDE]), PointLatLng(tappedLat, tappedLng)) : null;
+                } 
+
+                if (!_functionsExecuted) {
+                  // Set the flag to true to indicate that the functions have been executed
+                  _functionsExecuted = true;
+                  // Execute the functions you want to run only once
+                  _addBusMarker(LatLng(data[constants.LATITUDE], data[constants.LONGITUDE]), MarkerId(widget.busNumber));
+                  // _updatingPolyline(LatLng(data[constants.LATITUDE], data[constants.LONGITUDE]), data[constants.IS_ON_GOING]);
+                  _getAddressFromLatLng(data[constants.LATITUDE], data[constants.LONGITUDE]);
+                }
+              }
               return Positioned(
                 left: 16,
                 right: 16,
@@ -388,11 +416,7 @@ class MapPageState extends State<MapPage> {
       }
     }
 
-    if (totalMinutes >= 0) {
-      return totalMinutes;
-    } else {
-      return 0;
-    }
+    return totalMinutes;
   }
 
   // Fetching how many minutes and kilometers away
@@ -401,6 +425,7 @@ class MapPageState extends State<MapPage> {
         'https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&key=${constants.GOOLE_API_KEY}';
     
     final response = await http.get(Uri.parse(url));
+    SharedPreferences store = await SharedPreferences.getInstance();
 
     if (response.statusCode == 200) {
       final Map<String, dynamic> data = json.decode(response.body);
@@ -418,32 +443,41 @@ class MapPageState extends State<MapPage> {
           });
 
           int minutes = calculateTotalMinutes(minutesAway);
-          
-          SharedPreferences notifData = await SharedPreferences.getInstance();
-          String notifID = notifData.getString('notifID') ?? '';
-          double? prevLat = double.tryParse(notifData.getString('prevLat') ?? '');
-          double? prevLng= double.tryParse(notifData.getString('prevLng') ?? '');
 
-          if(minutes > 5 && (prevLat != destination.latitude && prevLng != destination.longitude)){
-            if(notifID.isNotEmpty){
-              await AwesomeNotifications().cancelAll();
-              print("Nagdelete ng notification");
-            }
-              saveData({
-                "notifID" : widget.busNumber
-              });
-
-              DateTime notif = DateTime.now().add(Duration(minutes: minutes - 5));
-              print("Created ang notification $notif");
-              AwesomeNotifications().createNotification(
-                schedule: NotificationCalendar.fromDate(date: notif),
+          if(minutes < 3 && !isNearby){
+              await AwesomeNotifications().createNotification(
                 content: NotificationContent(
-                  id: 1, 
-                  channelKey: 'notification_channel',
-                  title: 'Get Ready!',
-                  body: 'Your bus will be in your selected pin around 5 minutes', 
-              ));
+                id: Random().nextInt(100),
+                channelKey: 'scheduled',
+                title: 'Almost there!',
+                body: 'Your bus is nearby and will arrive at the pin you chose in any minute.',
+            ));
+            await AwesomeNotifications().cancelAllSchedules();
+            store.setBool('isSavedNearby', true);
+            setState(() {
+              isNearby = true;
+            });
+          }
+          
+          //schedule an alarm 5 minutes before the bus arrival
+          if(!hasNotif && minutes >= 6){
+            DateTime notif = DateTime.now();
 
+            await AwesomeNotifications().createNotification(
+              content: NotificationContent(
+                id: Random().nextInt(100),
+                channelKey: 'scheduled',
+                title: 'Get Ready',
+                body: 'Your bus will arrive at the pin you chose in about 5 minutes.',
+            ),
+              schedule: NotificationCalendar.fromDate(date: notif.toLocal().add(Duration(minutes: minutes - 5)), preciseAlarm: true, allowWhileIdle: true)
+            );
+
+            setState(() {
+              hasNotif = true;
+            });
+            
+            store.setBool('hasSavedNotif', true);
           }
         }
 
@@ -452,32 +486,6 @@ class MapPageState extends State<MapPage> {
       throw Exception('Failed to load route info');
     }
   }
-
-  // // Getting the address of the bus  
-  // Future<void> getAddress(double latitude, double longitude) async {
-  //   final url = 'https://maps.googleapis.com/maps/api/geocode/json?latlng=$latitude,$longitude&key=${constants.GOOLE_API_KEY}';
-
-  //   print("address url : ${url}");
-  //   final response = await http.get(Uri.parse(url));
-
-  //   if (response.statusCode == 200) {
-  //     final Map<String, dynamic> data = json.decode(response.body);
-  //     if (data['status'] == 'OK') {
-  //       final results = data['results'] as List<dynamic>;
-  //       if (results.isNotEmpty) {
-  //         print('address ${data['results'][3]['formatted_address']}' );
-  //         setState(() {
-  //             busAddress = data['results'][3]['formatted_address'];
-  //         });
-  //         // String formattedAddress = results[0]['formatted_address'];
-  //         // return data['results'][3]['formatted_address'];
-  //       }
-
-  //     }
-  //   } else {
-  //         throw Exception('Failed to get address');
-  //   }
-  // }
 
   Future<void> _getAddressFromLatLng(double latitude, double longitude) async {
     try {
@@ -556,6 +564,7 @@ class MapPageState extends State<MapPage> {
       setState(() {
         tappedLat = tapLatLng.latitude;
         tappedLng = tapLatLng.longitude;
+        hasNotif = false;
       });
     }
   }
@@ -564,11 +573,11 @@ class MapPageState extends State<MapPage> {
     SharedPreferences preferences = await SharedPreferences.getInstance();
     await preferences.clear();
     AwesomeNotifications().cancelAll();
-    print("Delete all notification");
     setState(() {
       _markers.removeWhere((marker) => marker.markerId == const MarkerId("PickUpPoint"));
       tappedLat = 0.0;
       tappedLng = 0.0;
+      hasNotif = false;
     }); 
   }
 

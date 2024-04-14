@@ -69,7 +69,7 @@ class MapScreenState extends State<MapScreen> {
                 return const SizedBox();
               }
 
-              snapshot.data!.docChanges.forEach((change) {
+              for (var change in snapshot.data!.docChanges) {
                 if (change.type == DocumentChangeType.added || change.type == DocumentChangeType.modified) {
                   // Get the document data
                   Map<String, dynamic> data = change.doc.data() as Map<String, dynamic>;
@@ -77,26 +77,10 @@ class MapScreenState extends State<MapScreen> {
                   double longitude = data[constants.LONGITUDE];
                   String markerId = data[constants.BUS_NUMBER];
                   _addBusMarker(LatLng(latitude, longitude), MarkerId(markerId));
-                } 
-                // Deleting bus if applicable
-                // else if (change.type == DocumentChangeType.removed) {
-                //   // Remove marker if document is removed
-                //   String markerId = change.doc.id;
-                //   Marker? markerToRemove = _markers.firstWhere(
-                //     (marker) => marker.markerId.value == markerId,
-                //     orElse: () => null,
-                //   );2
-
-                //   if (markerToRemove != null) {
-                //     setState(() {
-                //       _markers.remove(markerToRemove);
-                //     });
-                //   }
-                // }
+                }
               }
-              );
 
-              return SizedBox(); // Return an empty SizedBox since we're just updating markers
+              return const SizedBox(); // Return an empty SizedBox since we're just updating markers
             },
           ),
         ],
