@@ -122,6 +122,10 @@ class _MapState extends State<Map> {
     driverName = prefs.getString(constants.DRIVER_NAME);
     busNum = prefs.getString(constants.BUS_NUMBER);
     busPlateNum = prefs.getString(constants.BUS_PLATE_NUMBER);
+
+    setState(() {
+      isOnGoing = prefs.getBool('isOnGoing') ?? true; 
+    });
   }
 
   @override
@@ -235,7 +239,9 @@ class _MapState extends State<Map> {
                               ]),
                             IconButton(
                               iconSize: 50,
-                              onPressed: () {
+                              onPressed: () async {
+                                SharedPreferences prefs = await SharedPreferences.getInstance();
+                                prefs.setBool('isOnGoing', !isOnGoing);
                                 setState(() {
                                   isOnGoing = !isOnGoing;
                                 });

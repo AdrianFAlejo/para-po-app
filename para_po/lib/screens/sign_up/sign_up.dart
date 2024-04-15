@@ -14,14 +14,23 @@ class SignUp extends StatefulWidget {
 class _SignupState extends State<SignUp> {
 
   final _formKey = GlobalKey<FormBuilderState>();
+  
+  List<String> busRoutes = ['SM City Pampanga', 'SM City Olongapo'];
+
+  String selectedBusRoute = 'SM City Pampanga'; // Default selected value
+
 
   void setDriverDetails() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
     final formData = _formKey.currentState?.value;
+    
+    bool isOnGoing = selectedBusRoute == 'SM City Pampanga';
+
+    SharedPreferences prefs = await SharedPreferences.getInstance();
 
     await prefs.setString(constants.DRIVER_NAME, formData?[constants.DRIVER_NAME]);
     await prefs.setString(constants.BUS_NUMBER, formData?[constants.BUS_NUMBER]);
     await prefs.setString(constants.BUS_PLATE_NUMBER, formData?[constants.BUS_PLATE_NUMBER]);
+    await prefs.setBool('isOnGoing', isOnGoing);
 
     Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const RouteGate()));
   }
@@ -95,6 +104,27 @@ class _SignupState extends State<SignUp> {
                           return null;
                         },
                       ),
+                      FormBuilderDropdown(
+                      name: 'busRoute',
+                      decoration: const InputDecoration(
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(),
+                        labelText: 'Select Bus Route',
+                      ),
+                      initialValue: selectedBusRoute,
+                      items: busRoutes
+                          .map((route) => DropdownMenuItem(
+                                value: route,
+                                child: Text(route),
+                              ))
+                          .toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          selectedBusRoute = value.toString();
+                        });
+                      },
+                    ),
                       ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             shape: RoundedRectangleBorder(
