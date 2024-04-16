@@ -444,13 +444,13 @@ class MapPageState extends State<MapPage> {
 
           int minutes = calculateTotalMinutes(minutesAway);
 
-          if(minutes < 3 && !isNearby){
+          if(minutes < 5 && !isNearby){
               await AwesomeNotifications().createNotification(
                 content: NotificationContent(
                 id: Random().nextInt(100),
                 channelKey: 'scheduled',
-                title: 'Almost there!',
-                body: 'Your bus is nearby and will arrive at the pin you chose in any minute.',
+                title: 'Get Ready',
+                body: 'Your bus will arrive at the pin you chose in about 5 minutes.',
             ));
             await AwesomeNotifications().cancelAllSchedules();
             store.setBool('isSavedNearby', true);
@@ -460,17 +460,17 @@ class MapPageState extends State<MapPage> {
           }
           
           //schedule an alarm 5 minutes before the bus arrival
-          if(!hasNotif && minutes >= 6){
+          if(!hasNotif && minutes >= 4){
             DateTime notif = DateTime.now();
 
             await AwesomeNotifications().createNotification(
               content: NotificationContent(
                 id: Random().nextInt(100),
                 channelKey: 'scheduled',
-                title: 'Get Ready',
-                body: 'Your bus will arrive at the pin you chose in about 5 minutes.',
+                title: 'Almost there!',
+                body: 'Your bus is nearby and will arrive at the pin you chose in any minute.',
             ),
-              schedule: NotificationCalendar.fromDate(date: notif.toLocal().add(Duration(minutes: minutes - 5)), preciseAlarm: true, allowWhileIdle: true)
+              schedule: NotificationCalendar.fromDate(date: notif.toLocal().add(Duration(minutes: minutes - 3)), preciseAlarm: true, allowWhileIdle: true)
             );
 
             setState(() {
